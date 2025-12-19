@@ -1,0 +1,13 @@
+# Logrotate configuration for DuckDNS
+# This is installed automatically by install.sh with the correct user
+# For manual installation, replace USER with 'ubuntu' or 'ec2-user'
+
+/var/log/duckdns.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 644 USER USER
+}

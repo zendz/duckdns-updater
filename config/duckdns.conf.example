@@ -1,0 +1,16 @@
+# DuckDNS Configuration
+# Copy this file to /etc/duckdns.conf and set proper permissions:
+#   sudo cp config/duckdns.conf.example /etc/duckdns.conf
+#   sudo chmod 600 /etc/duckdns.conf
+
+# Your DuckDNS domain (without .duckdns.org)
+DUCKDNS_DOMAIN=mydomain
+
+# Your DuckDNS token from https://www.duckdns.org/
+DUCKDNS_TOKEN=your-token-here
+
+# Check interval in seconds (default: 300 = 5 minutes)
+CHECK_INTERVAL=300
+
+# Log file location
+LOG_FILE=/var/log/duckdns.log
