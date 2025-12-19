@@ -1,0 +1,21 @@
+# Sensitive configuration (contains token)
+duckdns.conf
+config/duckdns.conf
+
+# Log files
+logs/
+*.log
+
+# Git backup folders
+.git.backup/
+.git.bak/
+
+# Backup files
+*.bak
+*~
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
