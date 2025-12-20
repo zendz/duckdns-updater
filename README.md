@@ -10,7 +10,15 @@ Production-ready dynamic DNS updater for DuckDNS running on AWS EC2. Supports **
 - **[systemd/duckdns.service](systemd/duckdns.service)**: systemd service unit with security hardening and auto-restart
 - **[config/duckdns.conf.example](config/duckdns.conf.example)**: Configuration template for `/etc/duckdns.conf`
 - **[install.sh](install.sh)**: Automated installer with auto-detection for Ubuntu/Amazon Linux
-- **[legacy/duck_daemon.sh](legacy/duck_daemon.sh)**: Legacy daemon launcher (replaced by systemd)
+
+### Why systemd? (Not Cron)
+The official DuckDNS EC2 documentation suggests using cron with a 5-minute interval. **This approach has a critical flaw**: when an EC2 instance restarts and receives a new public IP, **it can take up to 5 minutes before the DNS record is updated**. During this window, your domain points to the old IP address, causing service downtime.
+
+Our systemd-based solution solves this by:
+- **Immediate updates on boot**: Service starts automatically and updates DNS within seconds
+- **Continuous monitoring**: Detects IP changes instantly (configurable interval, default 5min)
+- **Automatic recovery**: Restarts on failures, ensuring the updater is always running
+- **Better logging**: Integrated with journald for centralized log management
 
 ### Key Improvements Over DuckDNS Docs
 - **IMDSv2 token authentication**: More secure than `ec2metadata` command
@@ -168,21 +176,32 @@ Edit `/etc/duckdns.conf` and ensure service has write access:
 LOG_FILE=/custom/path/duckdns.log
 ```
 
-## Migration from Old Script
+## Migration from Cron-Based Scripts
 
-If upgrading from the original `duck_daemon.sh` approach:
+If you're currently using the cron approach from DuckDNS official docs:
 
 ```bash
-# 1. Stop old process
-pkill -f duck.sh
+# 1. Remove old cron job
+crontab -e
+# Delete the line: */5 * * * * /path/to/duck.sh >/dev/null 2>&1
 
 # 2. Run installer
 sudo ./install.sh
+sudo nano /etc/duckdns.conf  # Configure your domain and token
 
-# 3. Start new service
+# 3. Start and enable service
 sudo systemctl start duckdns
 sudo systemctl enable duckdns
+
+# 4. Verify it's running
+sudo systemctl status duckdns
 ```
+
+**Benefits of switching:**
+- ✅ No more 5-minute DNS downtime after EC2 restarts
+- ✅ Automatic service recovery on failures
+- ✅ Better logging and monitoring via journalctl
+- ✅ Proper process management (no orphaned processes)
 
 ## Development
 
