@@ -21,13 +21,20 @@ fi
 current_ip=""
 retry_count=0
 max_retries=3
+check_count=0
 
 log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+    # Print to stdout without timestamp (journald adds it)
+    echo "$*"
+    # Append to log file with timestamp
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"
 }
 
 log_error() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*" | tee -a "$LOG_FILE" >&2
+    # Print to stderr without timestamp (journald adds it)
+    echo "ERROR: $*" >&2
+    # Append to log file with timestamp
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*" >> "$LOG_FILE"
 }
 
 # Get EC2 public IP using IMDSv2 (token-based authentication)
@@ -110,6 +117,12 @@ while true; do
         log "IP changed: $current_ip -> $latest_ip"
         if update_duckdns "$latest_ip"; then
             current_ip="$latest_ip"
+        fi
+    else
+        # Log every 12 checks (1 hour) to show it's still running
+        check_count=$((check_count + 1))
+        if [[ $((check_count % 12)) -eq 0 ]]; then
+            log "Still monitoring - IP unchanged: $current_ip (${check_count} checks)"
         fi
     fi
     

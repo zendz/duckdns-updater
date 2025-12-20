@@ -91,15 +91,19 @@ sudo systemctl disable duckdns    # Disable at boot
 
 ### Monitoring
 ```bash
-# Live logs (systemd journal)
+# Live logs (systemd journal - timestamps added by journald)
 sudo journalctl -u duckdns -f
 
-# Log file (with timestamps)
+# Log file (with ISO 8601 timestamps from script)
 sudo tail -f /var/log/duckdns.log
 
 # Check if service is running
 systemctl is-active duckdns
 ```
+
+**Note on timestamps**: journalctl output includes timestamps from systemd, while `/var/log/duckdns.log` has timestamps added by the script. Both log the same events, but journalctl provides additional metadata (process ID, hostname).
+
+**Health check logs**: The service logs "Still monitoring - IP unchanged" every hour (12 checks × 5min interval) to confirm it's running properly when no IP changes occur.
 
 ### Log Rotation
 Configured via `/etc/logrotate.d/duckdns`:
