@@ -12,6 +12,7 @@ Production-ready dynamic DNS updater for DuckDNS on AWS EC2. A **systemd-managed
 - **Retry Pattern**: Exponential backoff with `$retry_count * $CHECK_INTERVAL` for IP fetch failures, fixed 10s retry for DuckDNS API calls
 - **Response Validation**: DuckDNS API returns `OK` (success) or `KO` (error) as plain text - always check exact string match
 - **Stateful Loop**: Tracks `current_ip` to avoid redundant API calls; only updates when IP actually changes
+- **Health Logging**: Logs "Still monitoring" message every 12 checks (1 hour) when IP unchanged to confirm service is alive
 
 ### Installation: `install.sh`
 - **User Detection Logic**: Auto-detects `ubuntu` (Ubuntu) or `ec2-user` (Amazon Linux) using `id` command - never hardcode usernames
@@ -62,9 +63,10 @@ All scripts use `set -euo pipefail` - any unset variable or non-zero exit causes
 
 ### Logging Pattern
 ```bash
-log "Message"          # Timestamp + stdout + append to LOG_FILE
-log_error "Error msg"  # Timestamp + stderr + append to LOG_FILE
+log "Message"          # Plain to stdout + timestamped to LOG_FILE
+log_error "Error msg"  # Plain to stderr + timestamped to LOG_FILE
 ```
+**Important**: Functions use `echo` (not `tee`) to avoid duplicate timestamps in journald. Systemd adds timestamps to stdout/stderr, while the script adds timestamps only when writing to `/var/log/duckdns.log`.
 
 ### Configuration Loading
 Scripts source `/etc/duckdns.conf` via `source "$CONFIG_FILE"` with `# shellcheck source=/dev/null` comment to avoid linter warnings. Required vars validated with `: "${VAR:?ERROR: message}"` pattern.
@@ -89,14 +91,14 @@ Scripts source `/etc/duckdns.conf` via `source "$CONFIG_FILE"` with `# shellchec
 ### systemd Integration
 - **Service Type**: `simple` (foreground process with infinite loop)
 - **Restart Policy**: `always` with 10s delay - service self-heals on crashes
-- **Logging**: `StandardOutput=journal` and `StandardError=journal` - all logs go to journald AND `/var/log/duckdns.log`
+- **Logging**: `StandardOutput=journal` and `StandardError=journal` - journald adds timestamps automatically; script adds timestamps only to `/var/log/duckdns.log` to avoid duplication
 
 ## Common Modifications
 
 ### Adding Features
 - New config vars: Add to `config/duckdns.conf.example` with comments, validate in script with `: "${VAR:?ERROR}"`
 - Error handling: Follow existing retry pattern (exponential for infra, fixed for API)
-- Logging: Always use ISO 8601 timestamps via `$(date '+%Y-%m-%d %H:%M:%S')`
+- Logging: Never add timestamps to stdout/stderr (journald handles it); only add timestamps when writing directly to `$LOG_FILE`
 
 ### Testing Checklist
 1. Works on both Ubuntu and Amazon Linux (user detection, paths)
