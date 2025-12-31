@@ -9,15 +9,20 @@ Production-ready dynamic DNS updater for DuckDNS on AWS EC2. A **systemd-managed
 
 ### Core Script: `bin/duck.sh`
 - **IMDSv2 Token Flow**: Always use two-step authentication (PUT token request → GET with token header) when accessing EC2 metadata
+- **IPv6 Support**: Optionally fetches and updates IPv6 addresses alongside IPv4 (controlled by `ENABLE_IPV6` config)
 - **Retry Pattern**: Exponential backoff with `$retry_count * $CHECK_INTERVAL` for IP fetch failures, fixed 10s retry for DuckDNS API calls
 - **Response Validation**: DuckDNS API returns `OK` (success) or `KO` (error) as plain text - always check exact string match
-- **Stateful Loop**: Tracks `current_ip` to avoid redundant API calls; only updates when IP actually changes
-- **Health Logging**: Logs "Still monitoring" message every 12 checks (1 hour) when IP unchanged to confirm service is alive
+- **Stateful Loop**: Tracks `current_ipv4` and `current_ipv6` to avoid redundant API calls; only updates when IPs actually change
+- **Health Logging**: Logs "Still monitoring" message every 12 checks (1 hour) when IPs unchanged to confirm service is alive
 
 ### Installation: `install.sh`
 - **User Detection Logic**: Auto-detects `ubuntu` (Ubuntu) or `ec2-user` (Amazon Linux) using `id` command - never hardcode usernames
+- **Upgrade Support**: Detects existing installations and preserves `/etc/duckdns.conf`, prompts user before overwriting
+- **Smart Config Updates**: Adds new config options (like `ENABLE_IPV6`) to existing configs without overwriting user settings
+- **Service Management**: Automatically stops/restarts service during upgrades if it's running
 - **File Ownership Pattern**: Config file is 600 (owner-only), log file is 644 (world-readable), both owned by detected user
 - **Sed Template Replacement**: Uses inline sed to replace `User=ec2-user` and `Group=ec2-user` in systemd unit before copying to `/etc/systemd/system/`
+- **Force Mode**: `./install.sh --force` skips all prompts for automated deployments
 
 ### Security Model
 - **Configuration**: `/etc/duckdns.conf` has 600 permissions with `DUCKDNS_TOKEN` - never log or expose this value
@@ -51,9 +56,16 @@ curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/met
 
 ### Installer Testing
 ```bash
-# Installer must run as root
+# New installation (installer must run as root)
 sudo ./install.sh
-# Always verify: user detection, file permissions, systemd unit user/group
+# Verify: user detection, file permissions, systemd unit user/group
+
+# Upgrade testing
+sudo ./install.sh
+# Verify: config preserved, service restarted, new options added
+
+# Force mode (no prompts)
+sudo ./install.sh --force
 ```
 
 ## Critical Conventions
@@ -79,13 +91,16 @@ Scripts source `/etc/duckdns.conf` via `source "$CONFIG_FILE"` with `# shellchec
 ## Integration Points
 
 ### DuckDNS API
-- **URL**: `https://www.duckdns.org/update?domains=${DOMAIN}&token=${TOKEN}&ip=${IP}`
+- **URL**: `https://www.duckdns.org/update?domains=${DOMAIN}&token=${TOKEN}&ip=${IPV4}&ipv6=${IPV6}`
+- **IPv4 parameter**: `ip` - required for IPv4 updates
+- **IPv6 parameter**: `ipv6` - optional, can be added for dual-stack updates
 - **Response**: Plain text `OK` or `KO` (no JSON)
 - **Rate Limit**: No official limit, but use `CHECK_INTERVAL >= 60` to be safe
 
 ### EC2 Metadata Service (IMDSv2)
 - **Token Endpoint**: `PUT http://169.254.169.254/latest/api/token` with header `X-aws-ec2-metadata-token-ttl-seconds: 21600`
-- **Public IP**: `GET http://169.254.169.254/latest/meta-data/public-ipv4` with header `X-aws-ec2-metadata-token: $TOKEN`
+- **Public IPv4**: `GET http://169.254.169.254/latest/meta-data/public-ipv4` with header `X-aws-ec2-metadata-token: $TOKEN`
+- **Public IPv6**: `GET http://169.254.169.254/latest/meta-data/ipv6` with header `X-aws-ec2-metadata-token: $TOKEN` (may return empty if not assigned)
 - Token TTL is 6 hours (21600s) - always get fresh token per script invocation (systemd auto-restarts handle long-term)
 
 ### systemd Integration
