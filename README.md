@@ -31,13 +31,29 @@ Our systemd-based solution solves this by:
 
 ## Installation
 
-### Quick Setup
+### Quick Setup (New Installation)
 ```bash
 sudo ./install.sh
 sudo nano /etc/duckdns.conf  # Set your domain and token
 sudo systemctl start duckdns
 sudo systemctl enable duckdns
 ```
+
+### Upgrade Existing Installation
+```bash
+# The installer automatically detects existing installations
+sudo ./install.sh
+
+# Or force reinstall without prompts
+sudo ./install.sh --force
+```
+
+**What happens during upgrade:**
+- ✅ Preserves your existing `/etc/duckdns.conf`
+- ✅ Updates script and service files
+- ✅ Adds new config options (like `ENABLE_IPV6`)
+- ✅ Automatically restarts service if it was running
+- ✅ Shows service status after restart
 
 ### Manual Setup
 ```bash
@@ -65,7 +81,16 @@ DUCKDNS_DOMAIN=mydomain          # Without .duckdns.org
 DUCKDNS_TOKEN=your-token-here    # From duckdns.org
 CHECK_INTERVAL=300               # Seconds (default: 5min)
 LOG_FILE=/var/log/duckdns.log    # Log location
+ENABLE_IPV6=true                 # Enable IPv6 support (default: true)
 ```
+
+### IPv6 Support
+- **Automatic detection**: The script checks if your EC2 instance has an IPv6 address
+- **Dual-stack updates**: Updates both IPv4 and IPv6 addresses when available
+- **Graceful fallback**: Works with IPv4-only instances (IPv6 update is skipped if not available)
+- **Disable IPv6**: Set `ENABLE_IPV6=false` in config to disable IPv6 completely
+
+**Note**: To enable IPv6 on your EC2 instance, assign an IPv6 address to your instance in the VPC settings.
 
 ### Platform Support
 - **Ubuntu 24.04 LTS**: Uses `ubuntu` user (auto-detected)
@@ -149,8 +174,16 @@ curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" \
 ## AWS Requirements
 - EC2 instance with IMDSv2 enabled (default on new instances)
 - Public IPv4 address assigned
+- **Optional**: IPv6 address assigned (for dual-stack DNS records)
 - Outbound HTTPS (443) access to `www.duckdns.org`
 - No special IAM permissions needed (uses metadata service)
+
+### Enabling IPv6 on EC2
+To use IPv6 support, your EC2 instance needs an IPv6 address:
+1. Ensure your VPC has an IPv6 CIDR block assigned
+2. Assign an IPv6 CIDR to your subnet
+3. Assign an IPv6 address to your EC2 instance
+4. Update route tables and security groups to allow IPv6 traffic
 
 ## Common Modifications
 

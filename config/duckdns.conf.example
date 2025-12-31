@@ -14,3 +14,7 @@ CHECK_INTERVAL=300
 
 # Log file location
 LOG_FILE=/var/log/duckdns.log
+
+# Enable IPv6 support (default: true)
+# Set to false if your EC2 instance doesn't have IPv6 or you don't want to update IPv6
+ENABLE_IPV6=true
